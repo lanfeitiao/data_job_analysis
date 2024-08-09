@@ -1,29 +1,43 @@
-from pathlib import Path
+import os
+from urllib.request import urlopen
+from dotenv import load_dotenv
+import pickle
+import pandas as pd
 
-import typer
-from loguru import logger
-from tqdm import tqdm
+# Access the url using the variable name defined in the .env file
+load_dotenv()
+db_file_path = os.getenv('DB_FILE_PATH')
 
-from data_job_analysis.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+# Load pickle file from url 
+with urlopen(db_file_path) as db:
+    pickle_db = pickle.load(db)
 
-app = typer.Typer()
-
-
-@app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = RAW_DATA_DIR / "dataset.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    # ----------------------------------------------
-):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Processing dataset...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Processing dataset complete.")
-    # -----------------------------------------
+def get_jobs_by_keyword(keyword):
+    
+    job_list =[]
+    job_ids = pickle_db['jobs_by_search_keyword'].get(keyword, set())
+    for job_id in job_ids:
+        job_details = pickle_db['jobs_by_id'][job_id]
+        job_list.append(job_details)
+    
+    return pd.DataFrame(job_list)
 
 
-if __name__ == "__main__":
-    app()
+def get_all_jobs():
+    job_list = []
+    # Assuming that your pickle_db dictionary correctly contains 'jobs_by_search_keyword'
+    # and 'jobs_by_id' as keys.
+    jobs_by_keyword = pickle_db.get('jobs_by_search_keyword', {})
+    jobs_by_id = pickle_db.get('jobs_by_id', {})
+
+    for keyword, job_ids in jobs_by_keyword.items():
+        print(f"{keyword}")
+        for job_id in job_ids:
+            job_details = jobs_by_id.get(job_id)
+            if job_details:
+                job_list.append(job_details)
+    
+    return pd.DataFrame(job_list)
+
+
+
